@@ -1,0 +1,136 @@
+# Local dev stack for FareWatch.
+#   docker compose up -d postgres redis    # infra only (run workers on host)
+#   docker compose up ingestion            # add the poller in a container
+#
+# Phase 1 ships postgres + redis + the ingestion worker. engine/matcher/notifier
+# get their own services in later phases (placeholders below, commented out).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: farewatch
+      POSTGRES_PASSWORD: farewatch
+      POSTGRES_DB: farewatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Auto-apply migrations on first boot of a fresh volume.
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farewatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: ingestion/Dockerfile
+    env_file: .env
+    environment:
+      # Override host-oriented URLs for in-network service names.
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  engine:
+    build:
+      context: .
+      dockerfile: engine/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  matcher:
+    build:
+      context: .
+      dockerfile: matcher/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notifier:
+    build:
+      context: .
+      dockerfile: notifier/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Phase 4 — read API for the web app.
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Safety-net: re-publishes stranded notifications (lost publish / crashed send).
+  notifier-sweeper:
+    build:
+      context: .
+      dockerfile: notifier/Dockerfile
+    command: ["python", "-m", "notifier.sweeper"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://farewatch:farewatch@postgres:5432/farewatch
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

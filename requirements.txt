@@ -1,0 +1,33 @@
+# FareWatch — Python workers + engine + API
+# Pinned loosely for MVP; tighten before deploy.
+
+# HTTP client for the Travelpayouts Data API
+httpx==0.27.2
+
+# Postgres driver (psycopg 3, binary build + connection pool)
+psycopg[binary,pool]==3.2.3
+
+# Redis client (Streams: XADD/XREADGROUP/XACK/XAUTOCLAIM)
+redis==5.2.1
+
+# Settings/env loading + validation
+pydantic==2.9.2
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Scheduling (lightweight in-process scheduler for ingestion)
+apscheduler==3.10.4
+
+# Read API (Phase 4): FastAPI + ASGI server. starlette ships with FastAPI;
+# TestClient (used by the guarded integration tests) needs httpx (already above).
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Stats for the detection engine (Phase 2)
+numpy==2.1.3
+
+# Structured logging
+structlog==24.4.0
+
+# Dev/test
+pytest==8.3.3
