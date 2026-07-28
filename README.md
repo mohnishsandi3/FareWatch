@@ -7,23 +7,23 @@ decisions.
 
 ## Status
 
-- **Phase 1 — Ingestion + price history** ✅ built (poll → dedup-write → stream).
-- **Phase 2 — Deal detection engine** ✅ built: robust baselines (median + MAD,
+- **Phase 1 — Ingestion + price history** built (poll → dedup-write → stream).
+- **Phase 2 — Deal detection engine** built: robust baselines (median + MAD,
   seasonality), anomaly detection with deal_score + confidence, a real Redis
   Streams consumer (consumer group, ack, reaper, dead-letter), and a cold-start
   seeder (`engine/seeder.py`) that primes baselines from the month-matrix.
-- **Phase 3 — Watches / matching / notifications** ✅ built + hardened: alert
+- **Phase 3 — Watches / matching / notifications** built + hardened: alert
   matcher (deal-events → active watches), notifier with pluggable channels, and
   the notifications dedup ledger. Adds a third stream (`stream:notifications`)
   and consumer group on the shared `run_consumer` machinery. Delivery is
   lease-claimed (idempotent) with an attempts cap, and a sweeper
   (`notifier/sweeper.py`) guarantees stranded notifications are eventually
   delivered.
-- **Phase 4 — Discovery dashboard** ✅ built: a FastAPI read layer (`/feed`,
+- **Phase 4 — Discovery dashboard** built: a FastAPI read layer (`/feed`,
   `/watches`, `/routes/{id}/history`) over Postgres, and a Next.js 15 + Tailwind
   front end — discovery feed, watch management, and a per-route price-history
   chart (dependency-free SVG) that shows *why* a price is flagged.
-- **Next iteration** 📋 designed, not yet built — see "Known Gaps & Next
+- **Next iteration** designed, not yet built — see "Known Gaps & Next
   Iteration" in [CLAUDE.md](./CLAUDE.md): matcher field fixes
   (`flexible_dates`/`cabin`), re-alert cooldown, booking deep links, an engine
   evaluation loop, then production hardening (rate-limit observability,
